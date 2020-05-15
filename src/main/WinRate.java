@@ -20,6 +20,7 @@ class WinRate {
 
     WinRate(String matchup, int wins, int losses) {
         this();
+        this.matchup = matchup;
         if (matchup.equals("ZvP")) {
             this.zvp[0] = wins;
             this.zvp[1] = losses;
