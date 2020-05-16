@@ -16,6 +16,7 @@ public class SC2Stats extends TimerTask {
 
     WinRate winrates;
     FileManager fileManager;
+    boolean hasPlayedPast24Hrs = false;
 
     public SC2Stats() {
         winrates = new WinRate();
@@ -25,33 +26,35 @@ public class SC2Stats extends TimerTask {
     public static void main(String[] args) {
         Timer timer = new Timer();
         SC2Stats timertask = new SC2Stats();
-        timer.schedule(timertask, 0, 100000);   // 1000 = 1 second
+        timer.schedule(timertask, 0, 5000);   // 1000 = 1 second
     }
 
     @Override
     public void run() {
         try {
-            // both accounts NA/EU S43
-            // Document doc2 = Jsoup.connect("https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/").userAgent("Chrome/81.0").get();
-
-            // default account (Gixx)
-            Document doc = Jsoup.connect("https://sc2replaystats.com/account/display/49324").userAgent("Chrome/81.0").get();
+            // Document doc = Jsoup.connect("https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/").userAgent("Chrome/81.0").get();
+            Document doc = Jsoup.connect("http://localhost/webscraper/3games-past24-bothAccounts.html").userAgent("Chrome/81.0").get();
             Elements tmp = doc.select("h2");
 
             // if no games in past 24 hours, then set all win rates to 0.
-            for (Element e : tmp) {
-                if (e.toString().equals("<h2>24 Hours <strong>Quick</strong> Statistics</h2>")) {
-                    String str = e.nextElementSibling().selectFirst("section").text();
+            if (!hasPlayedPast24Hrs) {
+                for (Element e : tmp) {
+                    if (e.toString().equals("<h2>24 Hours <strong>Quick</strong> Statistics</h2>")) {
+                        String str = e.nextElementSibling().selectFirst("section").text();
 
-                    if (str.equals("No games have been played")) {
-                        winrates.resetWinRates();
-                        break;
+                        if (str.equals("No games have been played")) {
+                            winrates.resetWinRates();
+                            return;
+                        } else {
+                            break;
+                        }
                     }
                 }
             }
 
             for (Element e : tmp) {
                 if (e.toString().equals("<h2>24 Hours <strong>Race </strong> Statistics</h2>")) {
+                    hasPlayedPast24Hrs = true;
                     Elements winrate = e.nextElementSibling().select("div.col-md-2");
                     for (Element x : winrate) {
                         String[] split = x.getElementsByTag("strong").first().text().split("\\s");
@@ -61,39 +64,34 @@ public class SC2Stats extends TimerTask {
                         int losses = Integer.parseInt(split[2]);
 
                         WinRate wr = new WinRate(matchup, wins, losses);
-                        StringBuilder sb = new StringBuilder();
-                        sb.append("C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\");
-                        buildFilePath(sb, wr);
+                        String dir = "/home/erik/scratch/SC2-scraper/";
+                        // String dir = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
+                        buildFilePath(dir, wr);
                     }
+                    return;
                 }
             }
         } catch (IOException e) {
-            System.out.println("Cannot connect to that webpage or invalid path for win10/linux.");
-            System.exit(1);
+            System.out.println("Cannot connect to that web page or the file path does not exist.");
+            System.exit(0);
         }
     }
 
-    void buildFilePath(StringBuilder directory, WinRate wr) throws IOException {
-        StringBuilder fullPath1 = new StringBuilder();
-        StringBuilder fullPath2 = new StringBuilder();
-        fullPath1.append(directory);
-        fullPath2.append(directory);
-
-        if (wr.matchup.equals("ZvP")) {
-            fullPath1.append("ZvP_Zwins.txt");
-            fullPath2.append("ZvP_Pwins.txt");
-            fileManager.save(fullPath1.toString(), wr.zvp[0]);
-            fileManager.save(fullPath2.toString(), wr.zvp[1]);
-        } else if (wr.matchup.equals("ZvT")) {
-            fullPath1.append("ZvT_Zwins.txt");
-            fullPath2.append("ZvT_Twins.txt");
-            fileManager.save(fullPath1.toString(), wr.zvt[0]);
-            fileManager.save(fullPath2.toString(), wr.zvt[1]);
-        } else if (wr.matchup.equals("ZvZ")) {
-            fullPath1.append("ZvZ_wins.txt");
-            fullPath2.append("ZvZ_losses.txt");
-            fileManager.save(fullPath1.toString(), wr.zvz[0]);
-            fileManager.save(fullPath2.toString(), wr.zvz[1]);
+    void buildFilePath(String dir, WinRate wr) throws IOException {
+        switch (wr.matchup) {
+            case "ZvP" -> saveFile(dir, "ZvP_Zwins.txt", "ZvP_Pwins.txt", wr.zvp);
+            case "ZvT" -> saveFile(dir, "ZvT_Zwins.txt", "ZvT_Twins.txt", wr.zvt);
+            case "ZvZ" -> saveFile(dir, "ZvZ_wins.txt", "ZvZ_losses.txt", wr.zvz);
+            default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
+    }
+
+    void saveFile(String dir, String fileName1, String fileName2, int[] ZvX) throws IOException {
+        StringBuilder sb1 = new StringBuilder(dir);
+        StringBuilder sb2 = new StringBuilder(dir);
+        sb1.append(fileName1);
+        sb2.append(fileName2);
+        fileManager.save(sb1.toString(), ZvX[0]);
+        fileManager.save(sb2.toString(), ZvX[1]);
     }
 }
