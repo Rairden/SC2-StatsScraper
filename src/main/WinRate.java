@@ -10,12 +10,9 @@ class WinRate {
     String matchup;
 
     public WinRate() {
-        int[] zvp = {0, 0};
-        int[] zvt = {0, 0};
-        int[] zvz = {0, 0};
-        this.zvt = zvt;
-        this.zvp = zvp;
-        this.zvz = zvz;
+        this.zvp = new int[] {0, 0};
+        this.zvt = new int[] {0, 0};
+        this.zvz = new int[] {0, 0};
     }
 
     WinRate(String matchup, int wins, int losses) {
