@@ -19,7 +19,7 @@ public class SC2Stats extends TimerTask {
     FileManager fileManager;
     boolean hasPlayedPast24Hrs = false;
     boolean firstLoop = true;
-    static short period = 5000;
+    static int period = 90000;
 
     static String url;
     static String NA_url    = "https://sc2replaystats.com/account/display/49324";
@@ -42,7 +42,7 @@ public class SC2Stats extends TimerTask {
 
     static void determineServer(String[] args) {
         if (args.length == 0) {
-            url = TEST_url;
+            url = ALL_url;
             return;
         }
         switch (args[0].toLowerCase()) {
@@ -50,7 +50,7 @@ public class SC2Stats extends TimerTask {
             case "eu"   -> url = EU_url;
             case "all"  -> url = ALL_url;
             case "test" -> url = TEST_url;
-            default     -> url = NA_url;
+            default     -> url = ALL_url;
         }
     }
 
@@ -96,8 +96,7 @@ public class SC2Stats extends TimerTask {
                             int losses = Integer.parseInt(split[2]);
 
                             WinRate wr = new WinRate(matchup, wins, losses);
-                            String dir = "/home/erik/scratch/SC2-scraper/";
-                            // String dir = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
+                            String dir = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
                             buildFilePath(dir, wr);
                         }
                         return;
