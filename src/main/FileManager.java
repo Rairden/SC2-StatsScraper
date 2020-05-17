@@ -6,10 +6,10 @@ import java.io.IOException;
 
 public class FileManager {
 
-    void save(String file, int wins) throws IOException {
+    void save(String file, String score) throws IOException {
         File f = new File(file);
         FileWriter writer = new FileWriter(f);
-        String intToString = String.valueOf(wins);
+        String intToString = String.valueOf(score);
         writer.write(intToString);
         writer.close();
     }

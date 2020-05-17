@@ -7,6 +7,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
+import java.util.Scanner;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -15,21 +16,25 @@ import java.util.TimerTask;
 
 public class SC2Stats extends TimerTask {
 
+    Scanner scan;
     WinRate winrates;
     FileManager fileManager;
-    boolean hasPlayedPast24Hrs = false;
     boolean firstLoop = true;
-    static int period = 90000;
+    boolean hasPlayedPast24Hrs = false;
+    static boolean updatedServer = false;
+    static long period = 60000;
 
     static String url;
+    static String dirWin10  = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
     static String NA_url    = "https://sc2replaystats.com/account/display/49324";
     static String EU_url    = "https://sc2replaystats.com/account/display/49324/0/2794640/1v1/AutoMM/43/";
     static String ALL_url   = "https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/";
-    static String TEST_url  = "http://localhost/webscraper/3games-past24-bothAccounts.html";
+    static String TEST_url  = "http://localhost/webscraper/nogames24hrs.html";
 
     public SC2Stats() {
-        winrates = new WinRate();
+        winrates = WinRate.getInstance();
         fileManager = new FileManager();
+        scan = new Scanner(System.in);
     }
 
     public static void main(String[] args) {
@@ -38,6 +43,15 @@ public class SC2Stats extends TimerTask {
         Timer timer = new Timer();
         SC2Stats timertask = new SC2Stats();
         timer.schedule(timertask, 0, period);   // 1000 = 1 second
+
+        while (true) {
+            if (timertask.scan.hasNextLine()) {
+                String[] in = timertask.scan.nextLine().toUpperCase().split("\\s");
+                determineServer(in);
+                updatedServer = true;
+                System.out.println("\n Switched to server: " + in[0] + "\nWeb page located at: " + url + "\n");
+            }
+        }
     }
 
     static void determineServer(String[] args) {
@@ -69,13 +83,16 @@ public class SC2Stats extends TimerTask {
                 firstLoop = false;
 
                 // if no games in past 24 hours, then set all win rates to 0.
-                if (!hasPlayedPast24Hrs) {
+                if (!hasPlayedPast24Hrs || updatedServer) {
                     for (Element e : tmp) {
                         if (e.toString().equals("<h2>24 Hours <strong>Quick</strong> Statistics</h2>")) {
                             String str = e.nextElementSibling().selectFirst("section").text();
 
                             if (str.equals("No games have been played")) {
-                                winrates.resetWinRates();
+                                String reset = "0 - 0";
+                                winrates.score_zvp = winrates.score_zvt = winrates.score_zvz = reset;
+                                winrates.matchup = "";
+                                buildFilePath(dirWin10);
                                 return;
                             } else {
                                 break;
@@ -89,21 +106,17 @@ public class SC2Stats extends TimerTask {
                         hasPlayedPast24Hrs = true;
                         Elements winrate = e.nextElementSibling().select("div.col-md-2");
                         for (Element x : winrate) {
-                            String[] split = x.getElementsByTag("strong").first().text().split("\\s");
+                            String score = x.getElementsByTag("strong").first().text();
                             String matchup = x.getElementsByTag("label").first().text();
 
-                            int wins = Integer.parseInt(split[0]);
-                            int losses = Integer.parseInt(split[2]);
-
-                            WinRate wr = new WinRate(matchup, wins, losses);
-                            String dir = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
-                            buildFilePath(dir, wr);
+                            WinRate.getInstance().update(matchup, score);
+                            buildFilePath(dirWin10);
                         }
                         return;
                     }
                 }
             } else {
-                System.out.println("Cannot connect to that web page");
+                System.out.println("Cannot connect to that web page.");
                 System.exit(0);
             }
         } catch (IOException e) {
@@ -112,21 +125,24 @@ public class SC2Stats extends TimerTask {
         }
     }
 
-    void buildFilePath(String dir, WinRate wr) throws IOException {
-        switch (wr.matchup) {
-            case "ZvP" -> saveFile(dir, "ZvP_Zwins.txt", "ZvP_Pwins.txt", wr.zvp);
-            case "ZvT" -> saveFile(dir, "ZvT_Zwins.txt", "ZvT_Twins.txt", wr.zvt);
-            case "ZvZ" -> saveFile(dir, "ZvZ_wins.txt", "ZvZ_losses.txt", wr.zvz);
+    void buildFilePath(String dir) throws IOException {
+        if (winrates.matchup.isEmpty()) {
+            saveFile(dir, "ZvP.txt", "0 - 0");
+            saveFile(dir, "ZvT.txt", "0 - 0");
+            saveFile(dir, "ZvZ.txt", "0 - 0");
+            return;
+        }
+        switch (winrates.matchup) {
+            case "ZvP" -> saveFile(dir, "ZvP.txt", winrates.score_zvp);
+            case "ZvT" -> saveFile(dir, "ZvT.txt", winrates.score_zvt);
+            case "ZvZ" -> saveFile(dir, "ZvZ.txt", winrates.score_zvz);
             default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
     }
 
-    void saveFile(String dir, String fileName1, String fileName2, int[] ZvX) throws IOException {
-        StringBuilder sb1 = new StringBuilder(dir);
-        StringBuilder sb2 = new StringBuilder(dir);
-        sb1.append(fileName1);
-        sb2.append(fileName2);
-        fileManager.save(sb1.toString(), ZvX[0]);
-        fileManager.save(sb2.toString(), ZvX[1]);
+    void saveFile(String dir, String fileName, String score) throws IOException {
+        StringBuilder sb = new StringBuilder(dir);
+        sb.append(fileName);
+        fileManager.save(sb.toString(), score);
     }
 }
