@@ -30,7 +30,7 @@ public class SC2Stats extends TimerTask {
     static String NA_url    = "https://sc2replaystats.com/account/display/49324";
     static String EU_url    = "https://sc2replaystats.com/account/display/49324/0/2794640/1v1/AutoMM/43/";
     static String ALL_url   = "https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/";
-    static String TEST_url  = "http://localhost/webscraper/nogames24hrs.html";
+    static String TEST_url  = "http://localhost/webscraper/2games-past24.html";
     static String TEST2_url  = "http://localhost/webscraper/3games-past24-bothAccounts.html";
 
     public SC2Stats() {
@@ -66,6 +66,7 @@ public class SC2Stats extends TimerTask {
             case "eu"   -> url = EU_url;
             case "all"  -> url = ALL_url;
             case "test" -> url = TEST_url;
+            case "test2" -> url = TEST2_url;
             default     -> url = TEST_url;
         }
     }
@@ -91,9 +92,7 @@ public class SC2Stats extends TimerTask {
                             String str = e.nextElementSibling().selectFirst("section").text();
 
                             if (str.equals("No games have been played")) {
-                                String reset = "0 - 0";
-                                winrates.score_zvp = winrates.score_zvt = winrates.score_zvz = reset;
-                                winrates.matchup = "";
+                                WinRate.getInstance().update("null", "null");
                                 buildFilePath(dirLinux);
                                 return;
                             } else {
@@ -107,6 +106,11 @@ public class SC2Stats extends TimerTask {
                     if (e.toString().equals("<h2>24 Hours <strong>Race </strong> Statistics</h2>")) {
                         hasPlayedPast24Hrs = true;
                         Elements winrate = e.nextElementSibling().select("div.col-md-2");
+
+                        if (winrate.size() < 3) {
+                            WinRate.getInstance().update("null", "null");
+                            buildFilePath(dirLinux);
+                        }
                         for (Element x : winrate) {
                             String score = x.getElementsByTag("strong").first().text();
                             String matchup = x.getElementsByTag("label").first().text();
@@ -128,16 +132,15 @@ public class SC2Stats extends TimerTask {
     }
 
     void buildFilePath(String dir) throws IOException {
-        if (winrates.matchup.isEmpty()) {
-            saveFile(dir, "ZvP.txt", "0 - 0");
-            saveFile(dir, "ZvT.txt", "0 - 0");
-            saveFile(dir, "ZvZ.txt", "0 - 0");
-            return;
-        }
         switch (winrates.matchup) {
-            case "ZvP" -> saveFile(dir, "ZvP.txt", winrates.score_zvp);
-            case "ZvT" -> saveFile(dir, "ZvT.txt", winrates.score_zvt);
-            case "ZvZ" -> saveFile(dir, "ZvZ.txt", winrates.score_zvz);
+            case ZvP -> saveFile(dir, "ZvP.txt", winrates.score_zvp);
+            case ZvT -> saveFile(dir, "ZvT.txt", winrates.score_zvt);
+            case ZvZ -> saveFile(dir, "ZvZ.txt", winrates.score_zvz);
+            case NULL -> {
+                saveFile(dir, "ZvP.txt", "0 - 0");
+                saveFile(dir, "ZvT.txt", "0 - 0");
+                saveFile(dir, "ZvZ.txt", "0 - 0");
+            }
             default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
     }
