@@ -22,14 +22,16 @@ public class SC2Stats extends TimerTask {
     boolean firstLoop = true;
     boolean hasPlayedPast24Hrs = false;
     static boolean updatedServer = false;
-    static long period = 60000;
+    static long period = 3000;
 
     static String url;
+    static String dirLinux  = "/home/erik/scratch/SC2-scraper/";
     static String dirWin10  = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
     static String NA_url    = "https://sc2replaystats.com/account/display/49324";
     static String EU_url    = "https://sc2replaystats.com/account/display/49324/0/2794640/1v1/AutoMM/43/";
     static String ALL_url   = "https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/";
     static String TEST_url  = "http://localhost/webscraper/nogames24hrs.html";
+    static String TEST2_url  = "http://localhost/webscraper/3games-past24-bothAccounts.html";
 
     public SC2Stats() {
         winrates = WinRate.getInstance();
@@ -56,7 +58,7 @@ public class SC2Stats extends TimerTask {
 
     static void determineServer(String[] args) {
         if (args.length == 0) {
-            url = ALL_url;
+            url = TEST_url;
             return;
         }
         switch (args[0].toLowerCase()) {
@@ -64,7 +66,7 @@ public class SC2Stats extends TimerTask {
             case "eu"   -> url = EU_url;
             case "all"  -> url = ALL_url;
             case "test" -> url = TEST_url;
-            default     -> url = ALL_url;
+            default     -> url = TEST_url;
         }
     }
 
@@ -92,7 +94,7 @@ public class SC2Stats extends TimerTask {
                                 String reset = "0 - 0";
                                 winrates.score_zvp = winrates.score_zvt = winrates.score_zvz = reset;
                                 winrates.matchup = "";
-                                buildFilePath(dirWin10);
+                                buildFilePath(dirLinux);
                                 return;
                             } else {
                                 break;
@@ -110,7 +112,7 @@ public class SC2Stats extends TimerTask {
                             String matchup = x.getElementsByTag("label").first().text();
 
                             WinRate.getInstance().update(matchup, score);
-                            buildFilePath(dirWin10);
+                            buildFilePath(dirLinux);
                         }
                         return;
                     }
