@@ -1,15 +1,32 @@
 package main;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import static main.Matchup.*;
+
+enum Matchup {
+    ZvP, ZvT, ZvZ, NULL, RESET;
+}
 
 final class WinRate {
 
     Matchup matchup;
-    String score_zvp;
-    String score_zvt;
-    String score_zvz;
+    int[] score_ZvP;
+    int[] score_ZvT;
+    int[] score_ZvZ;
+    int[] score_reset;
 
     static WinRate winRate = null;
+
+    public WinRate() {
+        this.matchup = NULL;
+        this.score_ZvP = new int[]{0, 0};
+        this.score_ZvT = new int[]{0, 0};
+        this.score_ZvZ = new int[]{0, 0};
+        this.score_reset = new int[]{0, 0};
+    }
 
     static WinRate getInstance() {
         if (winRate == null) {
@@ -19,25 +36,45 @@ final class WinRate {
     }
 
     void update(String matchup, String score) {
+        String[] split = score.split("\\s");
         switch (matchup) {
             case "ZvP" -> {
-                this.score_zvp = score;
+                setScore(this.score_ZvP, split);
                 this.matchup = ZvP;
             }
             case "ZvT" -> {
-                this.score_zvt = score;
+                setScore(this.score_ZvT, split);
                 this.matchup = ZvT;
             }
             case "ZvZ" -> {
-                this.score_zvz = score;
+                setScore(this.score_ZvZ, split);
                 this.matchup = ZvZ;
             }
             default -> {
-                this.score_zvp = "0 - 0";
-                this.score_zvt = "0 - 0";
-                this.score_zvz = "0 - 0";
+                Arrays.fill(this.score_ZvP, 0);
+                Arrays.fill(this.score_ZvT, 0);
+                Arrays.fill(this.score_ZvZ, 0);
                 this.matchup = NULL;
             }
         }
+    }
+
+    void setScore(int[] score, String[] split) {
+        score[0] = Integer.parseInt(split[0]);
+        score[1] = Integer.parseInt(split[2]);
+    }
+
+    List<String> determineMissingMatchup(List<String> foundMatchups) {
+        List<String> matchup = new ArrayList<>();
+        if (!foundMatchups.contains("ZvP")) {
+            matchup.add("ZvP");
+        }
+        if (!foundMatchups.contains("ZvT")) {
+            matchup.add("ZvT");
+        }
+        if (!foundMatchups.contains("ZvZ")) {
+            matchup.add("ZvZ");
+        }
+        return matchup;
     }
 }

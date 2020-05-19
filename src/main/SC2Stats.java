@@ -7,9 +7,9 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.util.Scanner;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
+
+import static main.Matchup.*;
 
 // https://www.youtube.com/watch?v=0s8O7jfy3c0
 // https://stackoverflow.com/questions/17315886/extract-and-group-elements-together-with-jsoup
@@ -58,7 +58,7 @@ public class SC2Stats extends TimerTask {
 
     static void determineServer(String[] args) {
         if (args.length == 0) {
-            url = TEST_url;
+            url = TEST2_url;
             return;
         }
         switch (args[0].toLowerCase()) {
@@ -77,7 +77,7 @@ public class SC2Stats extends TimerTask {
             Connection.Response response = Jsoup.connect(url).userAgent("Chrome/81.0").execute();
             if (response.statusCode() == 200) {
                 Document doc = Jsoup.connect(url).userAgent("Chrome/81.0").get();
-                Elements tmp = doc.select("h2");
+                Elements headings = doc.select("h2");
 
                 if (firstLoop) {
                     System.out.println("Download successful.\n");
@@ -87,7 +87,7 @@ public class SC2Stats extends TimerTask {
 
                 // if no games in past 24 hours, then set all win rates to 0.
                 if (!hasPlayedPast24Hrs || updatedServer) {
-                    for (Element e : tmp) {
+                    for (Element e : headings) {
                         if (e.toString().equals("<h2>24 Hours <strong>Quick</strong> Statistics</h2>")) {
                             String str = e.nextElementSibling().selectFirst("section").text();
 
@@ -102,21 +102,26 @@ public class SC2Stats extends TimerTask {
                     }
                 }
 
-                for (Element e : tmp) {
+                for (Element e : headings) {
                     if (e.toString().equals("<h2>24 Hours <strong>Race </strong> Statistics</h2>")) {
                         hasPlayedPast24Hrs = true;
                         Elements winrate = e.nextElementSibling().select("div.col-md-2");
 
-                        if (winrate.size() < 3) {
-                            WinRate.getInstance().update("null", "null");
-                            buildFilePath(dirLinux);
-                        }
                         for (Element x : winrate) {
                             String score = x.getElementsByTag("strong").first().text();
                             String matchup = x.getElementsByTag("label").first().text();
 
                             WinRate.getInstance().update(matchup, score);
                             buildFilePath(dirLinux);
+                        }
+                        if (winrate.size() < 3) {
+                            List<String> matchupFound = new ArrayList<>();
+                            for (Element x : winrate) {
+                                matchupFound.add(x.getElementsByTag("label").first().text());
+                            }
+                            List<String> missingMatchup = winrates.determineMissingMatchup(matchupFound);
+                            winrates.matchup = RESET;
+                            buildFilePath(dirLinux, missingMatchup);
                         }
                         return;
                     }
@@ -131,23 +136,38 @@ public class SC2Stats extends TimerTask {
         }
     }
 
-    void buildFilePath(String dir) throws IOException {
+    void buildFilePath(String dir, List<String>... exclude) throws IOException {
         switch (winrates.matchup) {
-            case ZvP -> saveFile(dir, "ZvP.txt", winrates.score_zvp);
-            case ZvT -> saveFile(dir, "ZvT.txt", winrates.score_zvt);
-            case ZvZ -> saveFile(dir, "ZvZ.txt", winrates.score_zvz);
+            case ZvP -> saveFile(dir, "ZvP.txt", winrates.score_ZvP);
+            case ZvT -> saveFile(dir, "ZvT.txt", winrates.score_ZvT);
+            case ZvZ -> saveFile(dir, "ZvZ.txt", winrates.score_ZvZ);
             case NULL -> {
-                saveFile(dir, "ZvP.txt", "0 - 0");
-                saveFile(dir, "ZvT.txt", "0 - 0");
-                saveFile(dir, "ZvZ.txt", "0 - 0");
+                saveFile(dir, "ZvP.txt", winrates.score_reset);
+                saveFile(dir, "ZvT.txt", winrates.score_reset);
+                saveFile(dir, "ZvZ.txt", winrates.score_reset);
+            }
+            case RESET -> {
+                for (List<String> str : exclude) {
+                    for (String s : str) {
+                        if (s.equals("ZvP")) {
+                            saveFile(dir, "ZvP.txt", winrates.score_reset);
+                        }
+                        if (s.equals("ZvT")) {
+                            saveFile(dir, "ZvT.txt", winrates.score_reset);
+                        }
+                        if (s.equals("ZvZ")) {
+                            saveFile(dir, "ZvZ.txt", winrates.score_reset);
+                        }
+                    }
+                }
             }
             default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
     }
 
-    void saveFile(String dir, String fileName, String score) throws IOException {
+    void saveFile(String dir, String fileName, int[] score) throws IOException {
         StringBuilder sb = new StringBuilder(dir);
         sb.append(fileName);
-        fileManager.save(sb.toString(), score);
+        fileManager.checkIfFileExists(sb.toString(), score);
     }
 }
