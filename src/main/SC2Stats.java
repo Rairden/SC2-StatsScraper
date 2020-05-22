@@ -7,9 +7,9 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.util.Scanner;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
+
+import static main.Matchup.*;
 
 // https://www.youtube.com/watch?v=0s8O7jfy3c0
 // https://stackoverflow.com/questions/17315886/extract-and-group-elements-together-with-jsoup
@@ -22,14 +22,16 @@ public class SC2Stats extends TimerTask {
     boolean firstLoop = true;
     boolean hasPlayedPast24Hrs = false;
     static boolean updatedServer = false;
-    static long period = 60000;
+    static long period = 90000;
 
     static String url;
+    static String dirLinux  = "/home/erik/scratch/SC2-scraper/";
     static String dirWin10  = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
     static String NA_url    = "https://sc2replaystats.com/account/display/49324";
     static String EU_url    = "https://sc2replaystats.com/account/display/49324/0/2794640/1v1/AutoMM/43/";
     static String ALL_url   = "https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/";
-    static String TEST_url  = "http://localhost/webscraper/nogames24hrs.html";
+    static String TEST_url  = "http://localhost/webscraper/2games-past24.html";
+    static String TEST2_url  = "http://localhost/webscraper/3games-past24-bothAccounts.html";
 
     public SC2Stats() {
         winrates = WinRate.getInstance();
@@ -64,6 +66,7 @@ public class SC2Stats extends TimerTask {
             case "eu"   -> url = EU_url;
             case "all"  -> url = ALL_url;
             case "test" -> url = TEST_url;
+            case "test2" -> url = TEST2_url;
             default     -> url = ALL_url;
         }
     }
@@ -74,7 +77,7 @@ public class SC2Stats extends TimerTask {
             Connection.Response response = Jsoup.connect(url).userAgent("Chrome/81.0").execute();
             if (response.statusCode() == 200) {
                 Document doc = Jsoup.connect(url).userAgent("Chrome/81.0").get();
-                Elements tmp = doc.select("h2");
+                Elements headings = doc.select("h2");
 
                 if (firstLoop) {
                     System.out.println("Download successful.\n");
@@ -84,14 +87,12 @@ public class SC2Stats extends TimerTask {
 
                 // if no games in past 24 hours, then set all win rates to 0.
                 if (!hasPlayedPast24Hrs || updatedServer) {
-                    for (Element e : tmp) {
+                    for (Element e : headings) {
                         if (e.toString().equals("<h2>24 Hours <strong>Quick</strong> Statistics</h2>")) {
                             String str = e.nextElementSibling().selectFirst("section").text();
 
                             if (str.equals("No games have been played")) {
-                                String reset = "0 - 0";
-                                winrates.score_zvp = winrates.score_zvt = winrates.score_zvz = reset;
-                                winrates.matchup = "";
+                                WinRate.getInstance().update("null", "null");
                                 buildFilePath(dirWin10);
                                 return;
                             } else {
@@ -101,16 +102,28 @@ public class SC2Stats extends TimerTask {
                     }
                 }
 
-                for (Element e : tmp) {
+                for (Element e : headings) {
                     if (e.toString().equals("<h2>24 Hours <strong>Race </strong> Statistics</h2>")) {
                         hasPlayedPast24Hrs = true;
                         Elements winrate = e.nextElementSibling().select("div.col-md-2");
+
                         for (Element x : winrate) {
                             String score = x.getElementsByTag("strong").first().text();
                             String matchup = x.getElementsByTag("label").first().text();
 
                             WinRate.getInstance().update(matchup, score);
                             buildFilePath(dirWin10);
+                        }
+                        if (winrate.size() < 3) {
+                            winrates.matchup = RESET;
+                            List<String> matchupFound = new ArrayList<>();
+                            for (Element i : winrate) {
+                                matchupFound.add(i.getElementsByTag("label").first().text());
+                            }
+                            List<String> missingMatchup = winrates.determineMissingMatchup(matchupFound);
+                            for (String s : missingMatchup) {
+                                buildFilePath(dirWin10, s);
+                            }
                         }
                         return;
                     }
@@ -125,24 +138,24 @@ public class SC2Stats extends TimerTask {
         }
     }
 
-    void buildFilePath(String dir) throws IOException {
-        if (winrates.matchup.isEmpty()) {
-            saveFile(dir, "ZvP.txt", "0 - 0");
-            saveFile(dir, "ZvT.txt", "0 - 0");
-            saveFile(dir, "ZvZ.txt", "0 - 0");
-            return;
-        }
+    void buildFilePath(String dir, String... exclude) throws IOException {
         switch (winrates.matchup) {
-            case "ZvP" -> saveFile(dir, "ZvP.txt", winrates.score_zvp);
-            case "ZvT" -> saveFile(dir, "ZvT.txt", winrates.score_zvt);
-            case "ZvZ" -> saveFile(dir, "ZvZ.txt", winrates.score_zvz);
+            case ZvP -> saveFile(dir, "ZvP.txt", winrates.score_ZvP);
+            case ZvT -> saveFile(dir, "ZvT.txt", winrates.score_ZvT);
+            case ZvZ -> saveFile(dir, "ZvZ.txt", winrates.score_ZvZ);
+            case NULL -> {
+                saveFile(dir, "ZvP.txt", winrates.score_reset);
+                saveFile(dir, "ZvT.txt", winrates.score_reset);
+                saveFile(dir, "ZvZ.txt", winrates.score_reset);
+            }
+            case RESET -> {
+                saveFile(dir, exclude[0] + ".txt", winrates.score_reset);
+            }
             default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
     }
 
-    void saveFile(String dir, String fileName, String score) throws IOException {
-        StringBuilder sb = new StringBuilder(dir);
-        sb.append(fileName);
-        fileManager.save(sb.toString(), score);
+    void saveFile(String dir, String fileName, int[] score) throws IOException {
+        fileManager.save(dir + fileName, score);
     }
 }
