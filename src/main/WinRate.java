@@ -22,10 +22,10 @@ final class WinRate {
 
     public WinRate() {
         this.matchup = NULL;
-        this.score_ZvP = new int[]{0, 0};
-        this.score_ZvT = new int[]{0, 0};
-        this.score_ZvZ = new int[]{0, 0};
-        this.score_reset = new int[]{0, 0};
+        this.score_ZvP = new int[2];
+        this.score_ZvT = new int[2];
+        this.score_ZvZ = new int[2];
+        this.score_reset = new int[2];
     }
 
     static WinRate getInstance() {

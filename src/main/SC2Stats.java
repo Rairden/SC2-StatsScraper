@@ -115,13 +115,15 @@ public class SC2Stats extends TimerTask {
                             buildFilePath(dirLinux);
                         }
                         if (winrate.size() < 3) {
+                            winrates.matchup = RESET;
                             List<String> matchupFound = new ArrayList<>();
-                            for (Element x : winrate) {
-                                matchupFound.add(x.getElementsByTag("label").first().text());
+                            for (Element i : winrate) {
+                                matchupFound.add(i.getElementsByTag("label").first().text());
                             }
                             List<String> missingMatchup = winrates.determineMissingMatchup(matchupFound);
-                            winrates.matchup = RESET;
-                            buildFilePath(dirLinux, missingMatchup);
+                            for (String s : missingMatchup) {
+                                buildFilePath(dirLinux, s);
+                            }
                         }
                         return;
                     }
@@ -136,7 +138,7 @@ public class SC2Stats extends TimerTask {
         }
     }
 
-    void buildFilePath(String dir, List<String>... exclude) throws IOException {
+    void buildFilePath(String dir, String... exclude) throws IOException {
         switch (winrates.matchup) {
             case ZvP -> saveFile(dir, "ZvP.txt", winrates.score_ZvP);
             case ZvT -> saveFile(dir, "ZvT.txt", winrates.score_ZvT);
@@ -147,27 +149,13 @@ public class SC2Stats extends TimerTask {
                 saveFile(dir, "ZvZ.txt", winrates.score_reset);
             }
             case RESET -> {
-                for (List<String> str : exclude) {
-                    for (String s : str) {
-                        if (s.equals("ZvP")) {
-                            saveFile(dir, "ZvP.txt", winrates.score_reset);
-                        }
-                        if (s.equals("ZvT")) {
-                            saveFile(dir, "ZvT.txt", winrates.score_reset);
-                        }
-                        if (s.equals("ZvZ")) {
-                            saveFile(dir, "ZvZ.txt", winrates.score_reset);
-                        }
-                    }
-                }
+                saveFile(dir, exclude[0] + ".txt", winrates.score_reset);
             }
             default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
     }
 
     void saveFile(String dir, String fileName, int[] score) throws IOException {
-        StringBuilder sb = new StringBuilder(dir);
-        sb.append(fileName);
-        fileManager.checkIfFileExists(sb.toString(), score);
+        fileManager.save(dir + fileName, score);
     }
 }
