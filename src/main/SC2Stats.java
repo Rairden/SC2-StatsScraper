@@ -6,8 +6,11 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static main.Matchup.*;
 
@@ -18,7 +21,7 @@ public class SC2Stats extends TimerTask {
 
     Scanner scan;
     WinRate winrates;
-    FileManager fileManager;
+    FileManager fileMgr;
     boolean firstLoop = true;
     boolean hasPlayedPast24Hrs = false;
     static boolean updatedServer = false;
@@ -35,15 +38,16 @@ public class SC2Stats extends TimerTask {
 
     public SC2Stats() {
         winrates = WinRate.getInstance();
-        fileManager = new FileManager();
+        fileMgr = new FileManager();
         scan = new Scanner(System.in);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         determineServer(args);
         System.out.println("Attempting to download web page from: \n" + url + "\n");
         Timer timer = new Timer();
         SC2Stats timertask = new SC2Stats();
+        timertask.buildFilePath(dirLinux);
         timer.schedule(timertask, 0, period);   // 1000 = 1 second
 
         while (true) {
@@ -67,12 +71,35 @@ public class SC2Stats extends TimerTask {
             case "all"  -> url = ALL_url;
             case "test" -> url = TEST_url;
             case "test2" -> url = TEST2_url;
-            default     -> url = TEST_url;
+            default     -> url = TEST2_url;
         }
     }
 
     @Override
     public void run() {
+        if (fileMgr.numberOfFiles() == fileMgr.numFiles) {
+            return;
+        }
+
+        fileMgr.numFiles = fileMgr.numberOfFiles();
+
+        // Skip if replay is vs A.I.: "2020-05-26 [ZvT] A.I. 1 (Elite), Rairden - Zen LE.SC2Replay"
+        File lastModified = fileMgr.getLastModified();
+
+        String fileName = lastModified.getName();
+        String regex = "A\\.I\\..*\\.SC2Replay$";      //    A\.I\..*\.SC2Replay$
+        Pattern regexp = Pattern.compile(regex);
+        Matcher match = regexp.matcher(fileName);
+
+        if (match.find()) { return; }
+
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException ignored) {}
+        webScrape();
+    }
+
+    void webScrape() {
         try {
             Connection.Response response = Jsoup.connect(url).userAgent("Chrome/81.0").execute();
             if (response.statusCode() == 200) {
@@ -82,8 +109,8 @@ public class SC2Stats extends TimerTask {
                 if (firstLoop) {
                     System.out.println("Download successful.\n");
                     System.out.println("Running every " + period + " ms...");
+                    firstLoop = false;
                 }
-                firstLoop = false;
 
                 // if no games in past 24 hours, then set all win rates to 0.
                 if (!hasPlayedPast24Hrs || updatedServer) {
@@ -148,14 +175,12 @@ public class SC2Stats extends TimerTask {
                 saveFile(dir, "ZvT.txt", winrates.score_reset);
                 saveFile(dir, "ZvZ.txt", winrates.score_reset);
             }
-            case RESET -> {
-                saveFile(dir, exclude[0] + ".txt", winrates.score_reset);
-            }
+            case RESET -> saveFile(dir, exclude[0] + ".txt", winrates.score_reset);
             default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
     }
 
     void saveFile(String dir, String fileName, int[] score) throws IOException {
-        fileManager.save(dir + fileName, score);
+        fileMgr.save(dir + fileName, score);
     }
 }
