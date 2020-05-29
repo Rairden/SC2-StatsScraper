@@ -26,6 +26,7 @@ public class SC2Stats extends TimerTask {
     boolean hasPlayedPast24Hrs = false;
     static boolean updatedServer = false;
     static long period = 3000;
+    static int Thsleep = 5000;
 
     static String url;
     static String dirLinux  = "/home/erik/scratch/SC2-scraper/";
@@ -33,8 +34,9 @@ public class SC2Stats extends TimerTask {
     static String NA_url    = "https://sc2replaystats.com/account/display/49324";
     static String EU_url    = "https://sc2replaystats.com/account/display/49324/0/2794640/1v1/AutoMM/43/";
     static String ALL_url   = "https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/";
-    static String TEST_url  = "http://localhost/webscraper/2games-past24.html";
-    static String TEST2_url  = "http://localhost/webscraper/3games-past24-bothAccounts.html";
+    static String TEST1_url  = "http://localhost/webscraper/1pending.html";
+    static String TEST2_url  = "http://localhost/webscraper/2games-past24.html";
+    static String TEST3_url  = "http://localhost/webscraper/3games-past24-bothAccounts.html";
 
     public SC2Stats() {
         winrates = WinRate.getInstance();
@@ -62,16 +64,17 @@ public class SC2Stats extends TimerTask {
 
     static void determineServer(String[] args) {
         if (args.length == 0) {
-            url = TEST2_url;
+            url = TEST1_url;
             return;
         }
         switch (args[0].toLowerCase()) {
             case "na"   -> url = NA_url;
             case "eu"   -> url = EU_url;
             case "all"  -> url = ALL_url;
-            case "test" -> url = TEST_url;
+            case "test1" -> url = TEST1_url;
             case "test2" -> url = TEST2_url;
-            default     -> url = TEST2_url;
+            case "test3" -> url = TEST3_url;
+            default     -> url = TEST1_url;
         }
     }
 
@@ -94,22 +97,34 @@ public class SC2Stats extends TimerTask {
         if (match.find()) { return; }
 
         try {
-            Thread.sleep(5000);
+            Thread.sleep(Thsleep);
         } catch (InterruptedException ignored) {}
+
         webScrape();
     }
 
     void webScrape() {
         try {
             Connection.Response response = Jsoup.connect(url).userAgent("Chrome/81.0").execute();
+
             if (response.statusCode() == 200) {
                 Document doc = Jsoup.connect(url).userAgent("Chrome/81.0").get();
                 Elements headings = doc.select("h2");
 
                 if (firstLoop) {
                     System.out.println("Download successful.\n");
-                    System.out.println("Running every " + period + " ms...");
+                    System.out.println("Polling directory every " + period / 1000 + " seconds.");
+                    System.out.println("Thread sleep for " + Thsleep / 1000 + " seconds. Then attempt to parse web page.\n");
                     firstLoop = false;
+                }
+
+                // Sometimes their server takes longer than 60 seconds to parse replays.
+                Element alert = doc.getElementsByClass("alert alert-info").first();
+                if (alert != null) {
+                    if (alert.text().contains("They will be processed shortly")) {
+                        fileMgr.numFiles = fileMgr.numberOfFiles() + 1;
+                        return;
+                    }
                 }
 
                 // if no games in past 24 hours, then set all win rates to 0.
@@ -141,12 +156,14 @@ public class SC2Stats extends TimerTask {
                             WinRate.getInstance().update(matchup, score);
                             buildFilePath(dirLinux);
                         }
+
                         if (winrate.size() < 3) {
                             winrates.matchup = RESET;
                             List<String> matchupFound = new ArrayList<>();
                             for (Element i : winrate) {
                                 matchupFound.add(i.getElementsByTag("label").first().text());
                             }
+
                             List<String> missingMatchup = winrates.determineMissingMatchup(matchupFound);
                             for (String s : missingMatchup) {
                                 buildFilePath(dirLinux, s);

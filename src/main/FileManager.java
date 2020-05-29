@@ -14,8 +14,8 @@ public class FileManager {
     String replayDirWin10 = "E:\\SC2\\replayBackup\\";
 
     public FileManager() {
-        file = new File(replayDirWin10);
-        numFiles = file.list().length - 1;
+        file = new File(replayDirLinux);
+        numFiles = file.list().length;
     }
 
     void save(String fullPath, int[] score) throws IOException {
@@ -71,6 +71,6 @@ public class FileManager {
     }
 
     int numberOfFiles() {
-        return file.list().length - 1;
+        return file.list().length;
     }
 }
