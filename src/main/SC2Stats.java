@@ -25,8 +25,10 @@ public class SC2Stats extends TimerTask {
     boolean firstLoop = true;
     boolean hasPlayedPast24Hrs = false;
     static boolean updatedServer = false;
+    static boolean processingRep = false;
     static long period = 3000;
-    static int Thsleep = 5000;
+    static long Thsleep = 5000;
+    static long pending = 15000;
 
     static String url;
     static String dirLinux  = "/home/erik/scratch/SC2-scraper/";
@@ -90,17 +92,24 @@ public class SC2Stats extends TimerTask {
         File lastModified = fileMgr.getLastModified();
 
         String fileName = lastModified.getName();
-        String regex = "A\\.I\\..*\\.SC2Replay$";      //    A\.I\..*\.SC2Replay$
+        String regex = "A\\.I\\..*\\.SC2Replay$";       //    A\.I\..*\.SC2Replay$
         Pattern regexp = Pattern.compile(regex);
         Matcher match = regexp.matcher(fileName);
 
         if (match.find()) { return; }
 
-        try {
-            Thread.sleep(Thsleep);
-        } catch (InterruptedException ignored) {}
+        if (processingRep) {
+            delay(pending);
+        } else {
+            delay(Thsleep);
+        }
+    }
 
-        webScrape();
+    void delay(long millis) {
+        try {
+            Thread.sleep(millis);
+            webScrape();
+        } catch (InterruptedException ignored) {}
     }
 
     void webScrape() {
@@ -109,22 +118,15 @@ public class SC2Stats extends TimerTask {
 
             if (response.statusCode() == 200) {
                 Document doc = Jsoup.connect(url).userAgent("Chrome/81.0").get();
-                Elements headings = doc.select("h2");
 
+                if (!hasBeenParsed(doc)) return;
+
+                Elements headings = doc.select("h2");
                 if (firstLoop) {
                     System.out.println("Download successful.\n");
                     System.out.println("Polling directory every " + period / 1000 + " seconds.");
                     System.out.println("Thread sleep for " + Thsleep / 1000 + " seconds. Then attempt to parse web page.\n");
                     firstLoop = false;
-                }
-
-                // Sometimes their server takes longer than 60 seconds to parse replays.
-                Element alert = doc.getElementsByClass("alert alert-info").first();
-                if (alert != null) {
-                    if (alert.text().contains("They will be processed shortly")) {
-                        fileMgr.numFiles = fileMgr.numberOfFiles() + 1;
-                        return;
-                    }
                 }
 
                 // if no games in past 24 hours, then set all win rates to 0.
@@ -180,6 +182,23 @@ public class SC2Stats extends TimerTask {
             System.out.println("Cannot connect to that web page or the file path does not exist.");
             System.exit(0);
         }
+    }
+
+    // Sometimes their server takes longer than 60 seconds to parse replays.
+    boolean hasBeenParsed(Document doc) {
+        Element alert = doc.getElementsByClass("alert alert-info").first();
+
+        if (alert == null) {
+            processingRep = false;
+            return true;
+        }
+
+        if (alert.text().contains("They will be processed shortly")) {
+            fileMgr.numFiles = fileMgr.numberOfFiles() + 1;
+            processingRep = true;
+            return false;
+        }
+        return true;
     }
 
     void buildFilePath(String dir, String... exclude) throws IOException {
