@@ -26,9 +26,9 @@ public class SC2Stats extends TimerTask {
     boolean hasPlayedPast24Hrs = false;
     static boolean updatedServer = false;
     static boolean processingRep = false;
-    static long period = 3000;
-    static long Thsleep = 5000;
-    static long pending = 15000;
+    static long period  = 3000;
+    static long pending = 5000;
+    static long notPending = 7000;
 
     static String url;
     static String dirLinux  = "/home/erik/scratch/SC2-scraper/";
@@ -99,21 +99,15 @@ public class SC2Stats extends TimerTask {
         if (match.find()) { return; }
 
         if (processingRep) {
-            delay(pending);
+            webScrape(pending);
         } else {
-            delay(Thsleep);
+            webScrape(notPending);
         }
     }
 
-    void delay(long millis) {
+    void webScrape(long millis) {
         try {
             Thread.sleep(millis);
-            webScrape();
-        } catch (InterruptedException ignored) {}
-    }
-
-    void webScrape() {
-        try {
             Connection.Response response = Jsoup.connect(url).userAgent("Chrome/81.0").execute();
 
             if (response.statusCode() == 200) {
@@ -124,8 +118,8 @@ public class SC2Stats extends TimerTask {
                 Elements headings = doc.select("h2");
                 if (firstLoop) {
                     System.out.println("Download successful.\n");
-                    System.out.println("Polling directory every " + period / 1000 + " seconds.");
-                    System.out.println("Thread sleep for " + Thsleep / 1000 + " seconds. Then attempt to parse web page.\n");
+                    System.out.println(" Poll directory interval: " + period / 1000 + " seconds");
+                    System.out.println("Delay before web parsing: " + notPending / 1000 + " seconds\n");
                     firstLoop = false;
                 }
 
@@ -178,7 +172,7 @@ public class SC2Stats extends TimerTask {
                 System.out.println("Cannot connect to that web page.");
                 System.exit(0);
             }
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             System.out.println("Cannot connect to that web page or the file path does not exist.");
             System.exit(0);
         }
