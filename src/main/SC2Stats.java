@@ -26,19 +26,20 @@ public class SC2Stats extends TimerTask {
     boolean hasPlayedPast24Hrs = false;
     static boolean updatedServer = false;
     static boolean processingRep = false;
+    static boolean resetAllGames = false;
     static long period  = 3000;
     static long pending = 5000;
     static long notPending = 7000;
 
     static String url;
-    static String dirLinux  = "/home/erik/scratch/SC2-scraper/";
-    static String dirWin10  = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
-    static String NA_url    = "https://sc2replaystats.com/account/display/49324";
-    static String EU_url    = "https://sc2replaystats.com/account/display/49324/0/2794640/1v1/AutoMM/43/";
-    static String ALL_url   = "https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/";
-    static String TEST1_url  = "http://localhost/webscraper/1pending.html";
-    static String TEST2_url  = "http://localhost/webscraper/2games-past24.html";
-    static String TEST3_url  = "http://localhost/webscraper/3games-past24-bothAccounts.html";
+    static final String DIR_LINUX   = "/home/erik/scratch/SC2-scraper/";
+    static final String DIR_WIN10   = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
+    static final String NA_URL      = "https://sc2replaystats.com/account/display/49324";
+    static final String EU_URL      = "https://sc2replaystats.com/account/display/49324/0/2794640/1v1/AutoMM/43/";
+    static final String ALL_URL     = "https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/";
+    static final String TEST1_URL   = "http://localhost/webscraper/1pending.html";
+    static final String TEST2_URL   = "http://localhost/webscraper/2games-past24.html";
+    static final String TEST3_URL   = "http://localhost/webscraper/3games-past24-bothAccounts.html";
 
     public SC2Stats() {
         winrates = WinRate.getInstance();
@@ -51,32 +52,42 @@ public class SC2Stats extends TimerTask {
         System.out.println("Attempting to download web page from: \n" + url + "\n");
         Timer timer = new Timer();
         SC2Stats timertask = new SC2Stats();
-        timertask.buildFilePath(dirLinux);
+        timertask.buildFilePath(DIR_LINUX);
         timer.schedule(timertask, 0, period);   // 1000 = 1 second
 
         while (true) {
             if (timertask.scan.hasNextLine()) {
                 String[] in = timertask.scan.nextLine().toUpperCase().split("\\s");
+
+                if (in[0].equals("RESET")) {
+                    WinRate.winRate.score_ZvP_reset = WinRate.getInstance().score_ZvP.clone();
+                    WinRate.winRate.score_ZvT_reset = WinRate.getInstance().score_ZvT.clone();
+                    WinRate.winRate.score_ZvZ_reset = WinRate.getInstance().score_ZvZ.clone();
+                    resetAllGames = true;
+                    continue;
+                }
+
                 determineServer(in);
                 updatedServer = true;
+                resetAllGames = false;
                 System.out.println("\n Switched to server: " + in[0] + "\nWeb page located at: " + url + "\n");
             }
         }
     }
 
-    static void determineServer(String[] args) {
+    private static void determineServer(String[] args) {
         if (args.length == 0) {
-            url = TEST1_url;
+            url = TEST1_URL;
             return;
         }
         switch (args[0].toLowerCase()) {
-            case "na"   -> url = NA_url;
-            case "eu"   -> url = EU_url;
-            case "all"  -> url = ALL_url;
-            case "test1" -> url = TEST1_url;
-            case "test2" -> url = TEST2_url;
-            case "test3" -> url = TEST3_url;
-            default     -> url = TEST1_url;
+            case "na"    -> url = NA_URL;
+            case "eu"    -> url = EU_URL;
+            case "all"   -> url = ALL_URL;
+            case "test1" -> url = TEST1_URL;
+            case "test2" -> url = TEST2_URL;
+            case "test3" -> url = TEST3_URL;
+            default      -> url = TEST1_URL;
         }
     }
 
@@ -131,7 +142,7 @@ public class SC2Stats extends TimerTask {
 
                             if (str.equals("No games have been played")) {
                                 WinRate.getInstance().update("null", "null");
-                                buildFilePath(dirLinux);
+                                buildFilePath(DIR_LINUX);
                                 return;
                             } else {
                                 break;
@@ -146,11 +157,11 @@ public class SC2Stats extends TimerTask {
                         Elements winrate = e.nextElementSibling().select("div.col-md-2");
 
                         for (Element x : winrate) {
-                            String score = x.getElementsByTag("strong").first().text();
                             String matchup = x.getElementsByTag("label").first().text();
+                            String score = x.getElementsByTag("strong").first().text();
 
-                            WinRate.getInstance().update(matchup, score);
-                            buildFilePath(dirLinux);
+                            WinRate.getInstance().update(matchup, score, resetAllGames);
+                            buildFilePath(DIR_LINUX);
                         }
 
                         if (winrate.size() < 3) {
@@ -162,7 +173,7 @@ public class SC2Stats extends TimerTask {
 
                             List<String> missingMatchup = winrates.determineMissingMatchup(matchupFound);
                             for (String s : missingMatchup) {
-                                buildFilePath(dirLinux, s);
+                                buildFilePath(DIR_LINUX, s);
                             }
                         }
                         return;
@@ -179,7 +190,7 @@ public class SC2Stats extends TimerTask {
     }
 
     // Sometimes their server takes longer than 60 seconds to parse replays.
-    boolean hasBeenParsed(Document doc) {
+    private boolean hasBeenParsed(Document doc) {
         Element alert = doc.getElementsByClass("alert alert-info").first();
 
         if (alert == null) {
@@ -195,7 +206,7 @@ public class SC2Stats extends TimerTask {
         return true;
     }
 
-    void buildFilePath(String dir, String... exclude) throws IOException {
+    private void buildFilePath(String dir, String... exclude) throws IOException {
         switch (winrates.matchup) {
             case ZvP -> saveFile(dir, "ZvP.txt", winrates.score_ZvP);
             case ZvT -> saveFile(dir, "ZvT.txt", winrates.score_ZvT);
@@ -210,7 +221,7 @@ public class SC2Stats extends TimerTask {
         }
     }
 
-    void saveFile(String dir, String fileName, int[] score) throws IOException {
+    private void saveFile(String dir, String fileName, int[] score) throws IOException {
         fileMgr.save(dir + fileName, score);
     }
 }

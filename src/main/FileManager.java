@@ -10,15 +10,15 @@ public class FileManager {
 
     File file;
     int numFiles;
-    String replayDirLinux = "/home/erik/scratch/SC2-scraper/replays/";
-    String replayDirWin10 = "E:\\SC2\\replayBackup\\";
+    static final String REPLAY_DIR_LINUX = "/home/erik/scratch/SC2-scraper/replays/";
+    static final String REPLAY_DIR_WIN10 = "E:\\SC2\\replayBackup\\";
 
     public FileManager() {
-        file = new File(replayDirLinux);
+        file = new File(REPLAY_DIR_LINUX);
         numFiles = file.list().length;
     }
 
-    void save(String fullPath, int[] score) throws IOException {
+    public void save(String fullPath, int[] score) throws IOException {
         File file = new File(fullPath);
         if (winRate.matchup != RESET && !isModified(fullPath, file, score)) {
             return;
@@ -26,9 +26,15 @@ public class FileManager {
         writeFile(score, file);
     }
 
-    boolean isModified(String path, File file, int[] score) throws IOException {
+    /**
+     * There's no need to write to disk if the data has not changed.
+     *
+     * @return false if the existing file matches the data that has been parsed.
+     * @throws IOException If an I/O error occurs
+     */
+    private boolean isModified(String fullPath, File file, int[] score) throws IOException {
         if (file.length() > 0) {
-            BufferedReader br = new BufferedReader(new FileReader(path));
+            BufferedReader br = new BufferedReader(new FileReader(fullPath));
             String str;
             while ((str = br.readLine()) != null) {
                 String[] strArr = str.split("\\s");
@@ -42,7 +48,8 @@ public class FileManager {
         return true;
     }
 
-    File getLastModified() {
+    // I only need to regex match the most recent file, not all 1000 files.
+    public File getLastModified() {
         File[] files = this.file.listFiles(File::isFile);
         long lastModifiedTime = Long.MIN_VALUE;
 
@@ -56,7 +63,7 @@ public class FileManager {
         return chosenFile;
     }
 
-    void writeFile(int[] score, File f) throws IOException {
+    private void writeFile(int[] score, File f) throws IOException {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 2; i++) {
             if (i == 1) {
@@ -70,7 +77,7 @@ public class FileManager {
         writer.close();
     }
 
-    int numberOfFiles() {
+    public int numberOfFiles() {
         return file.list().length;
     }
 }
