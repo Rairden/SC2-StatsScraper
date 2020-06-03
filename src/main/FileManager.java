@@ -4,18 +4,21 @@ import java.io.*;
 import java.util.Arrays;
 
 import static main.Matchup.*;
+import static main.Settings.DIR_REPLAYS;
 import static main.WinRate.winRate;
 
 public class FileManager {
 
     File file;
     int numFiles;
-    static final String REPLAY_DIR_LINUX = "/home/erik/scratch/SC2-scraper/replays/";
-    static final String REPLAY_DIR_WIN10 = "E:\\SC2\\replayBackup\\";
 
     public FileManager() {
-        file = new File(REPLAY_DIR_LINUX);
-        numFiles = file.list().length;
+        file = new File(DIR_REPLAYS);
+        try {
+            numFiles = file.list().length;
+        } catch (Exception e) {
+            numFiles = 0;
+        }
     }
 
     public void save(String fullPath, int[] score) throws IOException {
@@ -78,6 +81,10 @@ public class FileManager {
     }
 
     public int numberOfFiles() {
-        return file.list().length;
+        try {
+            return file.list().length;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

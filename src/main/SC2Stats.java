@@ -13,57 +13,56 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static main.Matchup.*;
+import static main.Settings.*;
 
 // https://www.youtube.com/watch?v=0s8O7jfy3c0
 // https://stackoverflow.com/questions/17315886/extract-and-group-elements-together-with-jsoup
 
 public class SC2Stats extends TimerTask {
 
-    Scanner scan;
-    WinRate winrates;
     FileManager fileMgr;
+    WinRate winRates;
+    Settings cfg;
+    static String url;
+
     boolean firstLoop = true;
     boolean hasPlayedPast24Hrs = false;
     static boolean updatedServer = false;
     static boolean processingRep = false;
     static boolean resetAllGames = false;
-    static long period  = 3000;
-    static long pending = 5000;
-    static long notPending = 7000;
 
-    static String url;
-    static final String DIR_LINUX   = "/home/erik/scratch/SC2-scraper/";
-    static final String DIR_WIN10   = "C:\\Users\\Erik\\Documents\\OBS-win10-sc2\\sc2-Streaming\\winrate\\";
-    static final String NA_URL      = "https://sc2replaystats.com/account/display/49324";
-    static final String EU_URL      = "https://sc2replaystats.com/account/display/49324/0/2794640/1v1/AutoMM/43/";
-    static final String ALL_URL     = "https://sc2replaystats.com/account/display/49324/0/195960-2794640/1v1/AutoMM/43/";
-    static final String TEST1_URL   = "http://localhost/webscraper/1pending.html";
-    static final String TEST2_URL   = "http://localhost/webscraper/2games-past24.html";
-    static final String TEST3_URL   = "http://localhost/webscraper/3games-past24-bothAccounts.html";
+    static long PERIOD  = 2000;
+    static long PENDING = 4000;
+    static long NOT_PENDING = 6000;
 
-    public SC2Stats() {
-        winrates = WinRate.getInstance();
+    public SC2Stats() throws IOException {
+        winRates = WinRate.getInstance();
+        cfg = new Settings();
         fileMgr = new FileManager();
-        scan = new Scanner(System.in);
     }
 
     public static void main(String[] args) throws IOException {
+        WinRate winRates = WinRate.getInstance();
+        Scanner scan = new Scanner(System.in);
+        Timer timer = new Timer();
+        SC2Stats timerTask = new SC2Stats();
+
         determineServer(args);
         System.out.println("Attempting to download web page from: \n" + url + "\n");
-        Timer timer = new Timer();
-        SC2Stats timertask = new SC2Stats();
-        timertask.buildFilePath(DIR_LINUX);
-        timer.schedule(timertask, 0, period);   // 1000 = 1 second
+
+        timerTask.buildFilePath(DIR_SCORES);
+        timer.schedule(timerTask, 0, PERIOD);   // 1000 = 1 second
 
         while (true) {
-            if (timertask.scan.hasNextLine()) {
-                String[] in = timertask.scan.nextLine().toUpperCase().split("\\s");
+            if (scan.hasNextLine()) {
+                String[] in = scan.nextLine().toUpperCase().split("\\s");
 
                 if (in[0].equals("RESET")) {
-                    WinRate.winRate.score_ZvP_reset = WinRate.getInstance().score_ZvP.clone();
-                    WinRate.winRate.score_ZvT_reset = WinRate.getInstance().score_ZvT.clone();
-                    WinRate.winRate.score_ZvZ_reset = WinRate.getInstance().score_ZvZ.clone();
+                    winRates.score_ZvP_reset = WinRate.getInstance().score_ZvP.clone();
+                    winRates.score_ZvT_reset = WinRate.getInstance().score_ZvT.clone();
+                    winRates.score_ZvZ_reset = WinRate.getInstance().score_ZvZ.clone();
                     resetAllGames = true;
+                    System.out.println("\nResetting all games to zero.\n");
                     continue;
                 }
 
@@ -77,7 +76,7 @@ public class SC2Stats extends TimerTask {
 
     private static void determineServer(String[] args) {
         if (args.length == 0) {
-            url = TEST1_URL;
+            url = TEST2_URL;
             return;
         }
         switch (args[0].toLowerCase()) {
@@ -87,15 +86,15 @@ public class SC2Stats extends TimerTask {
             case "test1" -> url = TEST1_URL;
             case "test2" -> url = TEST2_URL;
             case "test3" -> url = TEST3_URL;
-            default      -> url = TEST1_URL;
+            default      -> url = TEST2_URL;
         }
     }
 
     @Override
     public void run() {
-        if (fileMgr.numberOfFiles() == fileMgr.numFiles) {
-            return;
-        }
+        // if (fileMgr.numberOfFiles() == fileMgr.numFiles) {
+        //     return;
+        // }
 
         fileMgr.numFiles = fileMgr.numberOfFiles();
 
@@ -110,9 +109,9 @@ public class SC2Stats extends TimerTask {
         if (match.find()) { return; }
 
         if (processingRep) {
-            webScrape(pending);
+            webScrape(PENDING);
         } else {
-            webScrape(notPending);
+            webScrape(NOT_PENDING);
         }
     }
 
@@ -129,8 +128,8 @@ public class SC2Stats extends TimerTask {
                 Elements headings = doc.select("h2");
                 if (firstLoop) {
                     System.out.println("Download successful.\n");
-                    System.out.println(" Poll directory interval: " + period / 1000 + " seconds");
-                    System.out.println("Delay before web parsing: " + notPending / 1000 + " seconds\n");
+                    System.out.println(" Poll directory interval: " + PERIOD / 1000 + " seconds");
+                    System.out.println("Delay before web parsing: " + NOT_PENDING / 1000 + " seconds\n");
                     firstLoop = false;
                 }
 
@@ -142,7 +141,7 @@ public class SC2Stats extends TimerTask {
 
                             if (str.equals("No games have been played")) {
                                 WinRate.getInstance().update("null", "null");
-                                buildFilePath(DIR_LINUX);
+                                buildFilePath(DIR_SCORES);
                                 return;
                             } else {
                                 break;
@@ -161,19 +160,19 @@ public class SC2Stats extends TimerTask {
                             String score = x.getElementsByTag("strong").first().text();
 
                             WinRate.getInstance().update(matchup, score, resetAllGames);
-                            buildFilePath(DIR_LINUX);
+                            buildFilePath(DIR_SCORES);
                         }
 
                         if (winrate.size() < 3) {
-                            winrates.matchup = RESET;
+                            winRates.matchup = RESET;
                             List<String> matchupFound = new ArrayList<>();
                             for (Element i : winrate) {
                                 matchupFound.add(i.getElementsByTag("label").first().text());
                             }
 
-                            List<String> missingMatchup = winrates.determineMissingMatchup(matchupFound);
+                            List<String> missingMatchup = winRates.determineMissingMatchup(matchupFound);
                             for (String s : missingMatchup) {
-                                buildFilePath(DIR_LINUX, s);
+                                buildFilePath(DIR_SCORES, s);
                             }
                         }
                         return;
@@ -207,16 +206,16 @@ public class SC2Stats extends TimerTask {
     }
 
     private void buildFilePath(String dir, String... exclude) throws IOException {
-        switch (winrates.matchup) {
-            case ZvP -> saveFile(dir, "ZvP.txt", winrates.score_ZvP);
-            case ZvT -> saveFile(dir, "ZvT.txt", winrates.score_ZvT);
-            case ZvZ -> saveFile(dir, "ZvZ.txt", winrates.score_ZvZ);
+        switch (winRates.matchup) {
+            case ZvP -> saveFile(dir, "ZvP.txt", winRates.score_ZvP);
+            case ZvT -> saveFile(dir, "ZvT.txt", winRates.score_ZvT);
+            case ZvZ -> saveFile(dir, "ZvZ.txt", winRates.score_ZvZ);
             case NULL -> {
-                saveFile(dir, "ZvP.txt", winrates.score_reset);
-                saveFile(dir, "ZvT.txt", winrates.score_reset);
-                saveFile(dir, "ZvZ.txt", winrates.score_reset);
+                saveFile(dir, "ZvP.txt", winRates.score_reset);
+                saveFile(dir, "ZvT.txt", winRates.score_reset);
+                saveFile(dir, "ZvZ.txt", winRates.score_reset);
             }
-            case RESET -> saveFile(dir, exclude[0] + ".txt", winrates.score_reset);
+            case RESET -> saveFile(dir, exclude[0] + ".txt", winRates.score_reset);
             default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
     }
