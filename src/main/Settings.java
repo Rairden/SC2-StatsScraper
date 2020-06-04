@@ -1,18 +1,17 @@
 package main;
 
 import java.io.*;
-import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static main.FileManager.*;
+import static main.SC2Stats.*;
 
 public class Settings {
 
-    File cfgTemplate;
     File userCfg;
 
     static Map<String, String> paths;
@@ -26,12 +25,14 @@ public class Settings {
     static String TEST3_URL;
 
     public Settings() throws IOException {
-        // String cfgTemplate = new File(SC2Stats.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile().getPath() + template;
-        cfgTemplate = new File("lib/settings.cfg");
+        InputStream is = getClass().getResourceAsStream("resources/settings.cfg");
+        BufferedReader cfgTemplate = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+
         userCfg = new File(System.getProperty("user.dir") + File.separator + "settings.cfg");   // creates settings.cfg in jar execution dir
 
         paths = new HashMap<>();
-        loadCfg();
+        loadCfg(cfgTemplate, userCfg);
+
         DIR_SCORES = initializeURI("scores");
         DIR_REPLAYS = initializeURI("replays");
         NA_URL = initializeURI("na");
@@ -40,7 +41,16 @@ public class Settings {
         TEST1_URL = initializeURI("test1");
         TEST2_URL = initializeURI("test2");
         TEST3_URL = initializeURI("test3");
-        // writeFile();
+
+        if (!initializeURI("polldir").isEmpty()) {
+            PERIOD = Long.parseLong(initializeURI("polldir"));
+        }
+        if (!initializeURI("pending").isEmpty()) {
+            PENDING = Long.parseLong(initializeURI("pending"));
+        }
+        if (!initializeURI("notpending").isEmpty()) {
+            NOT_PENDING = Long.parseLong(initializeURI("notpending"));
+        }
     }
 
     private static String initializeURI(String str) {
@@ -50,13 +60,13 @@ public class Settings {
         return "";
     }
 
-    private void loadCfg() throws IOException {
+    private void loadCfg(BufferedReader br, File dest) throws IOException {
         Scanner scan;
-        if (userCfg.exists()) {
-            scan = new Scanner(userCfg);
+        if (dest.exists()) {
+            scan = new Scanner(dest);
         } else {
-            copyFile(cfgTemplate, userCfg);
-            System.out.println("Now set up your settings.cfg file. Then restart the program.");
+            copyFile(br);
+            System.out.println("Now set up your settings.cfg file. Then restart the program.\n");
             System.exit(0);
             return;
         }
@@ -69,20 +79,15 @@ public class Settings {
             }
 
             String[] keyVal = line.split("=");
-            paths.put(keyVal[0], keyVal[1]);
+            if (keyVal.length == 1) {
+                continue;
+            } else {
+                paths.put(keyVal[0], keyVal[1]);
+            }
         }
     }
 
-    private void copyFile(File src, File dest) throws IOException {
-        if (!userCfg.exists()) {
-            Files.copy(src.toPath(), dest.toPath());
-        }
-    }
-
-    // same result as java.nio.CopyFile(File, File)
-    private void copyFile() throws IOException {
-        BufferedReader br = new BufferedReader(new FileReader(cfgTemplate));
-
+    private void copyFile(BufferedReader br) throws IOException {
         String str = "";
         StringBuilder sb = new StringBuilder();
         while ((str = br.readLine()) != null) {

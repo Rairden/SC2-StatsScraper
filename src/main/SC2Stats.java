@@ -15,6 +15,9 @@ import java.util.regex.Pattern;
 import static main.Matchup.*;
 import static main.Settings.*;
 
+/**
+ * @author Erik Rairden - 6/4/2020
+ */
 // https://www.youtube.com/watch?v=0s8O7jfy3c0
 // https://stackoverflow.com/questions/17315886/extract-and-group-elements-together-with-jsoup
 
@@ -51,7 +54,7 @@ public class SC2Stats extends TimerTask {
         System.out.println("Attempting to download web page from: \n" + url + "\n");
 
         timerTask.buildFilePath(DIR_SCORES);
-        timer.schedule(timerTask, 0, PERIOD);   // 1000 = 1 second
+        timer.schedule(timerTask, 10000, PERIOD);   // 1000 = 1 second
 
         while (true) {
             if (scan.hasNextLine()) {
