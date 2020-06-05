@@ -33,30 +33,30 @@ public class Settings {
         paths = new HashMap<>();
         loadCfg(cfgTemplate, userCfg);
 
-        DIR_SCORES = initializeURI("scores");
-        DIR_REPLAYS = initializeURI("replays");
-        NA_URL = initializeURI("na");
-        EU_URL = initializeURI("eu");
-        ALL_URL = initializeURI("all");
-        TEST1_URL = initializeURI("test1");
-        TEST2_URL = initializeURI("test2");
-        TEST3_URL = initializeURI("test3");
+        DIR_SCORES = initializePath("scores");
+        DIR_REPLAYS = initializePath("replays");
+        NA_URL = initializePath("na");
+        EU_URL = initializePath("eu");
+        ALL_URL = initializePath("all");
+        TEST1_URL = initializePath("test1");
+        TEST2_URL = initializePath("test2");
+        TEST3_URL = initializePath("test3");
 
-        overRideURI("polldir", POLL_DIR_INTERVAL);
-        overRideURI("pending", PENDING_SLEEP_TIME);
-        overRideURI("notpending", NOT_PENDING_SLEEP_TIME);
+        overRideTime("polldir", POLL_DIR_INTERVAL);
+        overRideTime("pending", PENDING_SLEEP_TIME);
+        overRideTime("notpending", NOT_PENDING_SLEEP_TIME);
     }
 
-    static String initializeURI(String str) {
+    private static String initializePath(String str) {
         if (paths.get(str) != null) {
             return paths.get(str);
         }
         return "";
     }
 
-    static Long overRideURI(String cfg, Long sleepTime) {
-        if (!initializeURI(cfg).isEmpty()) {
-            return Long.parseLong(initializeURI(cfg));
+    public static Long overRideTime(String cfg, Long sleepTime) {
+        if (!initializePath(cfg).isEmpty()) {
+            return Long.parseLong(initializePath(cfg));
         }
         return sleepTime;
     }
@@ -64,8 +64,10 @@ public class Settings {
     private void loadCfg(BufferedReader br, File dest) throws IOException {
         Scanner scan;
         if (dest.exists()) {
+            System.out.println(dest.toString() + " (settings.cfg) exists at location dest.path().toString() " + dest.toPath().toString());
             scan = new Scanner(dest);
         } else {
+            System.out.println("Could not find settings.cfg");
             copyFile(br);
             System.out.println("Now set up your settings.cfg file. Then restart the program.\n");
             System.exit(0);

@@ -52,7 +52,7 @@ public class SC2Stats extends TimerTask {
         System.out.println("Attempting to download web page from: \n" + url + "\n");
 
         timerTask.buildFilePath(DIR_SCORES);
-        timer.schedule(timerTask, 10000, POLL_DIR_INTERVAL);   // 1000 = 1 second
+        timer.schedule(timerTask, 0, POLL_DIR_INTERVAL);   // 1000 = 1 second
 
         while (true) {
             if (scan.hasNextLine()) {
@@ -100,7 +100,7 @@ public class SC2Stats extends TimerTask {
                 webScrape(PENDING_SLEEP_TIME);
 
                 if (!processingRep) {
-                    PENDING_SLEEP_TIME = overRideURI("pending", 30000L);
+                    PENDING_SLEEP_TIME = overRideTime("pending", 30000L);
                     break;
                 }
             }
@@ -110,7 +110,7 @@ public class SC2Stats extends TimerTask {
             if (fileMgr.numberOfFiles() == fileMgr.numFiles) {
                 return;
             }
-
+            System.out.println("Detected a new replay.");
             fileMgr.numFiles = fileMgr.numberOfFiles();
 
             // Skip if replay is vs A.I.: "2020-05-26 [ZvT] A.I. 1 (Elite), Rairden - Zen LE.SC2Replay"
@@ -206,7 +206,7 @@ public class SC2Stats extends TimerTask {
 
         if (alert == null) {
             processingRep = false;
-            PENDING_SLEEP_TIME = Long.parseLong(paths.get("pending"));
+            PENDING_SLEEP_TIME = overRideTime("pending", 30000L);
             return true;
         }
 
