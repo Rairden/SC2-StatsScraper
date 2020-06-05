@@ -42,22 +42,23 @@ public class Settings {
         TEST2_URL = initializeURI("test2");
         TEST3_URL = initializeURI("test3");
 
-        if (!initializeURI("polldir").isEmpty()) {
-            PERIOD = Long.parseLong(initializeURI("polldir"));
-        }
-        if (!initializeURI("pending").isEmpty()) {
-            PENDING = Long.parseLong(initializeURI("pending"));
-        }
-        if (!initializeURI("notpending").isEmpty()) {
-            NOT_PENDING = Long.parseLong(initializeURI("notpending"));
-        }
+        overRideURI("polldir", POLL_DIR_INTERVAL);
+        overRideURI("pending", PENDING_SLEEP_TIME);
+        overRideURI("notpending", NOT_PENDING_SLEEP_TIME);
     }
 
-    private static String initializeURI(String str) {
+    static String initializeURI(String str) {
         if (paths.get(str) != null) {
             return paths.get(str);
         }
         return "";
+    }
+
+    static Long overRideURI(String cfg, Long sleepTime) {
+        if (!initializeURI(cfg).isEmpty()) {
+            return Long.parseLong(initializeURI(cfg));
+        }
+        return sleepTime;
     }
 
     private void loadCfg(BufferedReader br, File dest) throws IOException {

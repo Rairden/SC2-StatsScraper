@@ -29,6 +29,20 @@ public class FileManager {
         writeFile(score, file);
     }
 
+    private void writeFile(int[] score, File f) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 2; i++) {
+            if (i == 1) {
+                sb.append(" - ");
+            }
+            sb.append(score[i]).append(" ");
+            sb.setLength(sb.length() - 1);
+        }
+        FileWriter writer = new FileWriter(f);
+        writer.write(sb.toString());
+        writer.close();
+    }
+
     /**
      * There's no need to write to disk if the data has not changed.
      *
@@ -64,20 +78,6 @@ public class FileManager {
             }
         }
         return chosenFile;
-    }
-
-    private void writeFile(int[] score, File f) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < 2; i++) {
-            if (i == 1) {
-                sb.append(" - ");
-            }
-            sb.append(score[i]).append(" ");
-            sb.setLength(sb.length() - 1);
-        }
-        FileWriter writer = new FileWriter(f);
-        writer.write(sb.toString());
-        writer.close();
     }
 
     public int numberOfFiles() {

@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 
 import static main.Matchup.*;
 import static main.Settings.*;
+import static main.WinRate.*;
 
 /**
  * @author Erik Rairden - 6/4/2020
@@ -24,8 +25,6 @@ import static main.Settings.*;
 public class SC2Stats extends TimerTask {
 
     FileManager fileMgr;
-    WinRate winRates;
-    Settings cfg;
     static String url;
 
     boolean firstLoop = true;
@@ -34,18 +33,17 @@ public class SC2Stats extends TimerTask {
     static boolean processingRep = false;
     static boolean resetAllGames = false;
 
-    static long PERIOD  = 2000;
-    static long PENDING = 4000;
-    static long NOT_PENDING = 6000;
+    static long POLL_DIR_INTERVAL  = 2000;
+    static long PENDING_SLEEP_TIME = 4000;
+    static long NOT_PENDING_SLEEP_TIME = 6000;
 
-    public SC2Stats() throws IOException {
-        winRates = WinRate.getInstance();
-        cfg = new Settings();
+    public SC2Stats() {
         fileMgr = new FileManager();
     }
 
     public static void main(String[] args) throws IOException {
-        WinRate winRates = WinRate.getInstance();
+        WinRate.getInstance();
+        new Settings();
         Scanner scan = new Scanner(System.in);
         Timer timer = new Timer();
         SC2Stats timerTask = new SC2Stats();
@@ -54,16 +52,16 @@ public class SC2Stats extends TimerTask {
         System.out.println("Attempting to download web page from: \n" + url + "\n");
 
         timerTask.buildFilePath(DIR_SCORES);
-        timer.schedule(timerTask, 10000, PERIOD);   // 1000 = 1 second
+        timer.schedule(timerTask, 10000, POLL_DIR_INTERVAL);   // 1000 = 1 second
 
         while (true) {
             if (scan.hasNextLine()) {
                 String[] in = scan.nextLine().toUpperCase().split("\\s");
 
                 if (in[0].equals("RESET")) {
-                    winRates.score_ZvP_reset = WinRate.getInstance().score_ZvP.clone();
-                    winRates.score_ZvT_reset = WinRate.getInstance().score_ZvT.clone();
-                    winRates.score_ZvZ_reset = WinRate.getInstance().score_ZvZ.clone();
+                    winRate.score_ZvP_reset = WinRate.getInstance().score_ZvP.clone();
+                    winRate.score_ZvT_reset = WinRate.getInstance().score_ZvT.clone();
+                    winRate.score_ZvZ_reset = WinRate.getInstance().score_ZvZ.clone();
                     resetAllGames = true;
                     System.out.println("\nResetting all games to zero.\n");
                     continue;
@@ -95,26 +93,37 @@ public class SC2Stats extends TimerTask {
 
     @Override
     public void run() {
-        // if (fileMgr.numberOfFiles() == fileMgr.numFiles) {
-        //     return;
-        // }
-
-        fileMgr.numFiles = fileMgr.numberOfFiles();
-
-        // Skip if replay is vs A.I.: "2020-05-26 [ZvT] A.I. 1 (Elite), Rairden - Zen LE.SC2Replay"
-        File lastModified = fileMgr.getLastModified();
-
-        String fileName = lastModified.getName();
-        String regex = "A\\.I\\..*\\.SC2Replay$";       //    A\.I\..*\.SC2Replay$
-        Pattern regexp = Pattern.compile(regex);
-        Matcher match = regexp.matcher(fileName);
-
-        if (match.find()) { return; }
-
         if (processingRep) {
-            webScrape(PENDING);
+
+            // if sc2replaystats.com hasn't parsed your replay, try 3 times. After that, ignore/move on.
+            for (int i = 0; i < 3; i++) {
+                webScrape(PENDING_SLEEP_TIME);
+
+                if (!processingRep) {
+                    PENDING_SLEEP_TIME = overRideURI("pending", 30000L);
+                    break;
+                }
+            }
+            processingRep = false;
+
         } else {
-            webScrape(NOT_PENDING);
+            if (fileMgr.numberOfFiles() == fileMgr.numFiles) {
+                return;
+            }
+
+            fileMgr.numFiles = fileMgr.numberOfFiles();
+
+            // Skip if replay is vs A.I.: "2020-05-26 [ZvT] A.I. 1 (Elite), Rairden - Zen LE.SC2Replay"
+            File lastModified = fileMgr.getLastModified();
+
+            String fileName = lastModified.getName();
+            String regex = "A\\.I\\..*\\.SC2Replay$";       //    A\.I\..*\.SC2Replay$
+            Pattern regexp = Pattern.compile(regex);
+            Matcher match = regexp.matcher(fileName);
+
+            if (match.find()) { return; }
+
+            webScrape(NOT_PENDING_SLEEP_TIME);
         }
     }
 
@@ -131,8 +140,8 @@ public class SC2Stats extends TimerTask {
                 Elements headings = doc.select("h2");
                 if (firstLoop) {
                     System.out.println("Download successful.\n");
-                    System.out.println(" Poll directory interval: " + PERIOD / 1000 + " seconds");
-                    System.out.println("Delay before web parsing: " + NOT_PENDING / 1000 + " seconds\n");
+                    System.out.println(" Poll directory interval: " + POLL_DIR_INTERVAL / 1000 + " seconds");
+                    System.out.println("Delay before web parsing: " + NOT_PENDING_SLEEP_TIME / 1000 + " seconds\n");
                     firstLoop = false;
                 }
 
@@ -167,13 +176,13 @@ public class SC2Stats extends TimerTask {
                         }
 
                         if (winrate.size() < 3) {
-                            winRates.matchup = RESET;
+                            winRate.matchup = RESET;
                             List<String> matchupFound = new ArrayList<>();
                             for (Element i : winrate) {
                                 matchupFound.add(i.getElementsByTag("label").first().text());
                             }
 
-                            List<String> missingMatchup = winRates.determineMissingMatchup(matchupFound);
+                            List<String> missingMatchup = winRate.determineMissingMatchup(matchupFound);
                             for (String s : missingMatchup) {
                                 buildFilePath(DIR_SCORES, s);
                             }
@@ -197,11 +206,13 @@ public class SC2Stats extends TimerTask {
 
         if (alert == null) {
             processingRep = false;
+            PENDING_SLEEP_TIME = Long.parseLong(paths.get("pending"));
             return true;
         }
 
         if (alert.text().contains("They will be processed shortly")) {
             fileMgr.numFiles = fileMgr.numberOfFiles() + 1;
+            PENDING_SLEEP_TIME *= 3;
             processingRep = true;
             return false;
         }
@@ -209,16 +220,16 @@ public class SC2Stats extends TimerTask {
     }
 
     private void buildFilePath(String dir, String... exclude) throws IOException {
-        switch (winRates.matchup) {
-            case ZvP -> saveFile(dir, "ZvP.txt", winRates.score_ZvP);
-            case ZvT -> saveFile(dir, "ZvT.txt", winRates.score_ZvT);
-            case ZvZ -> saveFile(dir, "ZvZ.txt", winRates.score_ZvZ);
+        switch (winRate.matchup) {
+            case ZvP -> saveFile(dir, "ZvP.txt", winRate.score_ZvP);
+            case ZvT -> saveFile(dir, "ZvT.txt", winRate.score_ZvT);
+            case ZvZ -> saveFile(dir, "ZvZ.txt", winRate.score_ZvZ);
             case NULL -> {
-                saveFile(dir, "ZvP.txt", winRates.score_reset);
-                saveFile(dir, "ZvT.txt", winRates.score_reset);
-                saveFile(dir, "ZvZ.txt", winRates.score_reset);
+                saveFile(dir, "ZvP.txt", winRate.score_reset);
+                saveFile(dir, "ZvT.txt", winRate.score_reset);
+                saveFile(dir, "ZvZ.txt", winRate.score_reset);
             }
-            case RESET -> saveFile(dir, exclude[0] + ".txt", winRates.score_reset);
+            case RESET -> saveFile(dir, exclude[0] + ".txt", winRate.score_reset);
             default -> throw new IllegalArgumentException("Argument must be one of the three: ZvP, ZvT, ZvZ");
         }
     }

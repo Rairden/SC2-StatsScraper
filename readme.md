@@ -13,28 +13,30 @@ See right side of game (small overlay winrates)
 
 ## How to install
 
-1. Place the application (SC2-StatsScraper.jar) anywhere on your system.
-2. Run it from command prompt or powershell by typing this:
+1. Install Java 14 - Java(TM) SE Runtime Environment (build 14.0.1+7)
+2. Go to [sc2replaystats.com](https://sc2replaystats.com/), signup, and install their automatic replay upload tool.
+3. Place the application (SC2-StatsScraper.jar) anywhere on your system.
+4. Run it from command prompt or powershell by this command:
 
 ```sh
 java -jar SC2-StatsScraper.jar
 ```
 
-3. The first time you run the jar file, it will create a blank template `settings.cfg` file in your current directory. It needs to be customized and needs 3 lines of input from you.
+5. The first time you run the jar file, it will create a blank template `settings.cfg` file in your current directory before the program shuts down. Before the program will run, it needs 3 lines of input from you in `settings.cfg`.
 
 My `settings.cfg` file is 20 lines long, but this would be a fully working cfg file like this, and order doesn't matter:
 
 ```sh
 all=https://sc2replaystats.com/account/display/12345
-win10=C:\Users\%USERNAME%\Documents
+scores=C:\Users\%USERNAME%\Documents
 replays=E:\SC2\replayBackup\
 ```
 
-The keywords on the left-hand side cannot change (all, win10, replays). Customize the paths on the right-hand side.
+The keywords on the left-hand side cannot change (all, scores, replays). Customize the paths on the right-hand side of the equals sign. No spaces allowed, and at the end of the path/url, no spaces allowed.
 
 ```sh
 all=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-win10=xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+scores=xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 replays=xxxxxxxxxxxxxxxxxxxx
 ```
 
