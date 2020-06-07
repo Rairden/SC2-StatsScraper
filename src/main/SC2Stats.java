@@ -33,9 +33,9 @@ public class SC2Stats extends TimerTask {
     static boolean processingRep = false;
     static boolean resetAllGames = false;
 
-    static long POLL_DIR_INTERVAL  = 2000;
-    static long PENDING_SLEEP_TIME = 4000;
-    static long NOT_PENDING_SLEEP_TIME = 6000;
+    static long POLL_DIR_INTERVAL  = 10000;
+    static long PENDING_SLEEP_TIME = 30000;
+    static long NOT_PENDING_SLEEP_TIME = 75000;
 
     public SC2Stats() {
         fileMgr = new FileManager();
@@ -56,12 +56,12 @@ public class SC2Stats extends TimerTask {
 
         while (true) {
             if (scan.hasNextLine()) {
-                String[] in = scan.nextLine().toUpperCase().split("\\s");
+                String[] in = scan.nextLine().toLowerCase().split("\\s");
 
-                if (in[0].equals("RESET")) {
-                    winRate.score_ZvP_reset = WinRate.getInstance().score_ZvP.clone();
-                    winRate.score_ZvT_reset = WinRate.getInstance().score_ZvT.clone();
-                    winRate.score_ZvZ_reset = WinRate.getInstance().score_ZvZ.clone();
+                if (in[0].equals("reset")) {
+                    winRate.score_ZvP_reset = winRate.score_ZvP.clone();
+                    winRate.score_ZvT_reset = winRate.score_ZvT.clone();
+                    winRate.score_ZvZ_reset = winRate.score_ZvZ.clone();
                     resetAllGames = true;
                     System.out.println("\nResetting all games to zero.\n");
                     continue;
@@ -77,7 +77,7 @@ public class SC2Stats extends TimerTask {
 
     private static void determineServer(String[] args) {
         if (args.length == 0) {
-            url = TEST2_URL;
+            url = ALL_URL;
             return;
         }
         switch (args[0].toLowerCase()) {
@@ -87,29 +87,29 @@ public class SC2Stats extends TimerTask {
             case "test1" -> url = TEST1_URL;
             case "test2" -> url = TEST2_URL;
             case "test3" -> url = TEST3_URL;
-            default      -> url = TEST2_URL;
+            default      -> url = ALL_URL;
         }
     }
 
     @Override
     public void run() {
         if (processingRep) {
-
             // if sc2replaystats.com hasn't parsed your replay, try 3 times. After that, ignore/move on.
             for (int i = 0; i < 3; i++) {
                 webScrape(PENDING_SLEEP_TIME);
+                PENDING_SLEEP_TIME *= 3;
 
                 if (!processingRep) {
-                    PENDING_SLEEP_TIME = overRideTime("pending", 30000L);
                     break;
                 }
             }
             processingRep = false;
+            PENDING_SLEEP_TIME = overRideTime("pending", 30000L);
+            fileMgr.numFiles = fileMgr.numberOfFiles();
 
         } else {
-            if (fileMgr.numberOfFiles() == fileMgr.numFiles) {
-                return;
-            }
+            if (fileMgr.numberOfFiles() == fileMgr.numFiles) return;
+
             System.out.println("Detected a new replay.");
             fileMgr.numFiles = fileMgr.numberOfFiles();
 
@@ -117,11 +117,9 @@ public class SC2Stats extends TimerTask {
             File lastModified = fileMgr.getLastModified();
 
             String fileName = lastModified.getName();
-            String regex = "A\\.I\\..*\\.SC2Replay$";       //    A\.I\..*\.SC2Replay$
-            Pattern regexp = Pattern.compile(regex);
-            Matcher match = regexp.matcher(fileName);
+            String regex = ".*A\\.I\\..*\\.SC2Replay$";
 
-            if (match.find()) { return; }
+            if (fileName.matches(regex)) return;
 
             webScrape(NOT_PENDING_SLEEP_TIME);
         }
@@ -135,7 +133,7 @@ public class SC2Stats extends TimerTask {
             if (response.statusCode() == 200) {
                 Document doc = Jsoup.connect(url).userAgent("Chrome/81.0").get();
 
-                if (!hasBeenParsed(doc)) return;
+                if (isProcessing(doc)) return;
 
                 Elements headings = doc.select("h2");
                 if (firstLoop) {
@@ -152,7 +150,7 @@ public class SC2Stats extends TimerTask {
                             String str = e.nextElementSibling().selectFirst("section").text();
 
                             if (str.equals("No games have been played")) {
-                                WinRate.getInstance().update("null", "null");
+                                winRate.update("null", "null");
                                 buildFilePath(DIR_SCORES);
                                 return;
                             } else {
@@ -171,7 +169,7 @@ public class SC2Stats extends TimerTask {
                             String matchup = x.getElementsByTag("label").first().text();
                             String score = x.getElementsByTag("strong").first().text();
 
-                            WinRate.getInstance().update(matchup, score, resetAllGames);
+                            winRate.update(matchup, score, resetAllGames);
                             buildFilePath(DIR_SCORES);
                         }
 
@@ -201,20 +199,17 @@ public class SC2Stats extends TimerTask {
     }
 
     // Sometimes their server takes longer than 60 seconds to parse replays.
-    private boolean hasBeenParsed(Document doc) {
+    private boolean isProcessing(Document doc) {
         Element alert = doc.getElementsByClass("alert alert-info").first();
 
         if (alert == null) {
             processingRep = false;
-            PENDING_SLEEP_TIME = overRideTime("pending", 30000L);
-            return true;
+            return false;
         }
 
         if (alert.text().contains("They will be processed shortly")) {
-            fileMgr.numFiles = fileMgr.numberOfFiles() + 1;
-            PENDING_SLEEP_TIME *= 3;
             processingRep = true;
-            return false;
+            return true;
         }
         return true;
     }

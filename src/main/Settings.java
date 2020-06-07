@@ -54,20 +54,18 @@ public class Settings {
         return "";
     }
 
-    public static Long overRideTime(String cfg, Long sleepTime) {
+    public static Long overRideTime(String cfg, Long defaultSleepTime) {
         if (!initializePath(cfg).isEmpty()) {
             return Long.parseLong(initializePath(cfg));
         }
-        return sleepTime;
+        return defaultSleepTime;
     }
 
     private void loadCfg(BufferedReader br, File dest) throws IOException {
         Scanner scan;
         if (dest.exists()) {
-            System.out.println(dest.toString() + " (settings.cfg) exists at location dest.path().toString() " + dest.toPath().toString());
             scan = new Scanner(dest);
         } else {
-            System.out.println("Could not find settings.cfg");
             copyFile(br);
             System.out.println("Now set up your settings.cfg file. Then restart the program.\n");
             System.exit(0);
@@ -77,14 +75,13 @@ public class Settings {
         while (scan.hasNextLine()) {
             String line = scan.nextLine();
 
-            if (isComment(line) || isSection(line) || line.isEmpty()) {
+            // skip comments '#', or sections '[]' or empty lines
+            if (line.matches("^#.*|\\[.*\\].*|\\s*")) {
                 continue;
             }
 
-            String[] keyVal = line.split("=");
-            if (keyVal.length == 1) {
-                continue;
-            } else {
+            String[] keyVal = line.trim().split("=");
+            if (keyVal.length == 2) {
                 paths.put(keyVal[0], keyVal[1]);
             }
         }
@@ -100,21 +97,5 @@ public class Settings {
         FileWriter fw = new FileWriter(userCfg);
         fw.write(sb.toString());
         fw.close();
-    }
-
-    private boolean isComment(String line) {
-        String regexComment = "^#.*";
-        Pattern p = Pattern.compile(regexComment);
-        Matcher m = p.matcher(line);
-
-        return m.matches();
-    }
-
-    private boolean isSection(String line) {
-        String regexBrackets = "^\\[.*\\]$";
-        Pattern p = Pattern.compile(regexBrackets);
-        Matcher m = p.matcher(line);
-
-        return m.matches();
     }
 }
