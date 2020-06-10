@@ -9,12 +9,10 @@ import org.jsoup.select.Elements;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static main.Matchup.*;
 import static main.Settings.*;
-import static main.WinRate.*;
+import static main.WinRate.winRate;
 
 /**
  * @author Erik Rairden - 6/4/2020
@@ -33,7 +31,7 @@ public class SC2Stats extends TimerTask {
     static boolean processingRep = false;
     static boolean resetAllGames = false;
 
-    static long POLL_DIR_INTERVAL  = 10000;
+    static long POLL_DIR_INTERVAL  = 5000;
     static long PENDING_SLEEP_TIME = 30000;
     static long NOT_PENDING_SLEEP_TIME = 75000;
 
@@ -56,7 +54,7 @@ public class SC2Stats extends TimerTask {
 
         while (true) {
             if (scan.hasNextLine()) {
-                String[] in = scan.nextLine().toLowerCase().split("\\s");
+                String[] in = scan.nextLine().trim().toLowerCase().split("\\s");
 
                 if (in[0].equals("reset")) {
                     winRate.score_ZvP_reset = winRate.score_ZvP.clone();
@@ -97,7 +95,7 @@ public class SC2Stats extends TimerTask {
             // if sc2replaystats.com hasn't parsed your replay, try 3 times. After that, ignore/move on.
             for (int i = 0; i < 3; i++) {
                 webScrape(PENDING_SLEEP_TIME);
-                PENDING_SLEEP_TIME *= 3;
+                PENDING_SLEEP_TIME *= 2;
 
                 if (!processingRep) {
                     break;
@@ -110,7 +108,6 @@ public class SC2Stats extends TimerTask {
         } else {
             if (fileMgr.numberOfFiles() == fileMgr.numFiles) return;
 
-            System.out.println("Detected a new replay.");
             fileMgr.numFiles = fileMgr.numberOfFiles();
 
             // Skip if replay is vs A.I.: "2020-05-26 [ZvT] A.I. 1 (Elite), Rairden - Zen LE.SC2Replay"

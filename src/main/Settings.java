@@ -1,18 +1,14 @@
 package main;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static main.SC2Stats.*;
 
 public class Settings {
-
-    File userCfg;
 
     static Map<String, String> paths;
     static String DIR_SCORES;
@@ -25,10 +21,8 @@ public class Settings {
     static String TEST3_URL;
 
     public Settings() throws IOException {
-        InputStream is = getClass().getResourceAsStream("resources/settings.cfg");
-        BufferedReader cfgTemplate = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
-
-        userCfg = new File(System.getProperty("user.dir") + File.separator + "settings.cfg");   // creates settings.cfg in jar execution dir
+        InputStream cfgTemplate = getClass().getResourceAsStream("resources/settings.cfg");
+        File userCfg = new File(System.getProperty("user.dir") + File.separator + "settings.cfg");   // creates settings.cfg in jar execution dir
 
         paths = new HashMap<>();
         loadCfg(cfgTemplate, userCfg);
@@ -42,9 +36,9 @@ public class Settings {
         TEST2_URL = initializePath("test2");
         TEST3_URL = initializePath("test3");
 
-        overRideTime("polldir", POLL_DIR_INTERVAL);
-        overRideTime("pending", PENDING_SLEEP_TIME);
-        overRideTime("notpending", NOT_PENDING_SLEEP_TIME);
+        POLL_DIR_INTERVAL = overRideTime("polldir", POLL_DIR_INTERVAL);
+        PENDING_SLEEP_TIME = overRideTime("pending", PENDING_SLEEP_TIME);
+        NOT_PENDING_SLEEP_TIME = overRideTime("notpending", NOT_PENDING_SLEEP_TIME);
     }
 
     private static String initializePath(String str) {
@@ -61,12 +55,12 @@ public class Settings {
         return defaultSleepTime;
     }
 
-    private void loadCfg(BufferedReader br, File dest) throws IOException {
+    private void loadCfg(InputStream cfgTemplate, File userCfg) throws IOException {
         Scanner scan;
-        if (dest.exists()) {
-            scan = new Scanner(dest);
+        if (userCfg.exists()) {
+            scan = new Scanner(userCfg);
         } else {
-            copyFile(br);
+            copyFile(cfgTemplate, userCfg);
             System.out.println("Now set up your settings.cfg file. Then restart the program.\n");
             System.exit(0);
             return;
@@ -75,7 +69,7 @@ public class Settings {
         while (scan.hasNextLine()) {
             String line = scan.nextLine();
 
-            // skip comments '#', or sections '[]' or empty lines
+            // skip comments '#', sections '[]' or empty lines
             if (line.matches("^#.*|\\[.*\\].*|\\s*")) {
                 continue;
             }
@@ -87,15 +81,7 @@ public class Settings {
         }
     }
 
-    private void copyFile(BufferedReader br) throws IOException {
-        String str = "";
-        StringBuilder sb = new StringBuilder();
-        while ((str = br.readLine()) != null) {
-            sb.append(str).append("\n");
-        }
-
-        FileWriter fw = new FileWriter(userCfg);
-        fw.write(sb.toString());
-        fw.close();
+    private void copyFile(InputStream src, File dest) throws IOException {
+        Files.copy(src, dest.toPath());
     }
 }

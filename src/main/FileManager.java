@@ -14,11 +14,7 @@ public class FileManager {
 
     public FileManager() {
         file = new File(DIR_REPLAYS);
-        try {
-            numFiles = file.list().length;
-        } catch (Exception e) {
-            numFiles = 0;
-        }
+        numFiles = numberOfFiles();
     }
 
     public void save(String fullPath, int[] score) throws IOException {
@@ -50,9 +46,11 @@ public class FileManager {
         if (file.length() > 0) {
             BufferedReader br = new BufferedReader(new FileReader(fullPath));
             String str;
+
             while ((str = br.readLine()) != null) {
                 String[] strArr = str.trim().split("\\s");
                 int[] arr = {Integer.parseInt(strArr[0]), Integer.parseInt(strArr[2])};
+
                 if (Arrays.hashCode(arr) == Arrays.hashCode(score)) {
                     // System.err.println("File hasn't changed");
                     return false;
