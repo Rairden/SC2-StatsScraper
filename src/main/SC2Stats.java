@@ -31,10 +31,6 @@ public class SC2Stats extends TimerTask {
     static boolean processingRep = false;
     static boolean resetAllGames = false;
 
-    static long POLL_DIR_INTERVAL  = 5000;
-    static long PENDING_SLEEP_TIME = 30000;
-    static long NOT_PENDING_SLEEP_TIME = 75000;
-
     public SC2Stats() {
         fileMgr = new FileManager();
     }
@@ -56,6 +52,15 @@ public class SC2Stats extends TimerTask {
             if (scan.hasNextLine()) {
                 String[] in = scan.nextLine().trim().toLowerCase().split("\\s");
 
+                if (!in[0].matches("na|eu|all|test1|test2|test3|reset")) {
+                    System.out.println("\nCommand not found.\n");
+                    System.out.println("Available cmds: na - switch to North America URL");
+                    System.out.printf("%42s", "eu - switch to Europe URL\n");
+                    System.out.printf("%45s", "all - combine both NA/EU URL\n");
+                    System.out.printf("%45s", "reset - reset the stats to 0\n");
+                    continue;
+                }
+
                 if (in[0].equals("reset")) {
                     winRate.score_ZvP_reset = winRate.score_ZvP.clone();
                     winRate.score_ZvT_reset = winRate.score_ZvT.clone();
@@ -74,7 +79,7 @@ public class SC2Stats extends TimerTask {
     }
 
     private static void determineServer(String[] args) {
-        if (args.length == 0) {
+        if (args.length == 0 || !args[0].matches("na|eu|all|test1|test2|test3")) {
             url = ALL_URL;
             return;
         }
@@ -85,7 +90,6 @@ public class SC2Stats extends TimerTask {
             case "test1" -> url = TEST1_URL;
             case "test2" -> url = TEST2_URL;
             case "test3" -> url = TEST3_URL;
-            default      -> url = ALL_URL;
         }
     }
 
@@ -102,7 +106,7 @@ public class SC2Stats extends TimerTask {
                 }
             }
             processingRep = false;
-            PENDING_SLEEP_TIME = overRideTime("pending", 30000L);
+            PENDING_SLEEP_TIME = Long.parseLong(paths.get("pending"));
             fileMgr.numFiles = fileMgr.numberOfFiles();
 
         } else {
